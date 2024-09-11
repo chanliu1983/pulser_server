@@ -8,6 +8,7 @@
 #include <zlib.h>
 #include <map>
 #include "main.h"
+#include "server.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -203,7 +204,17 @@ void recvAndParsePayload(int fd)
     delete[] payload;
 }
 
+#include <thread>
+
+void runWebServer(Server& server) {
+    server.start(8080);
+}
+
 int main() {
+    Server server;
+    std::thread serverThread(runWebServer, std::ref(server));
+    serverThread.detach();
+
     struct event_base* base;
     struct evconnlistener* listener;
     struct sockaddr_in sin;
