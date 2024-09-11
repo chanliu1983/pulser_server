@@ -36,7 +36,6 @@ void acceptCallback(evconnlistener* listener, evutil_socket_t fd, sockaddr* addr
 }
 
 void readCallback(evutil_socket_t fd, short events, void* arg) {
-    // recvAndParsePayload(fd);
     if (events & EV_READ) {
         char buffer[1];
         // Check if the socket has been closed
@@ -51,6 +50,7 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
             }
             // Close the socket
             evutil_closesocket(fd);
+            ConduitsCollection::getInstance().deleteFd(fd);
 
             // Retrieve the event pointer from the map
             auto it0 = eventMap.find(fd);
@@ -71,6 +71,7 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
                 std::cerr << "Error checking socket status: " << strerror(errno) << std::endl;
                 // Close the socket
                 evutil_closesocket(fd);
+                ConduitsCollection::getInstance().deleteFd(fd);
                 // Retrieve the event pointer from the map
                 auto it = eventMap.find(fd);
                 if (it == eventMap.end()) {
@@ -107,8 +108,12 @@ struct DataFrame {
     }
 };
 
+#include "executor.h"
+
 void recvAndParsePayload(int fd)
 {
+    static Executor executor; // Create an instance of the Executor class
+
     // Receive the magic
     uint32_t magic;
     if (recv(fd, reinterpret_cast<char*>(&magic), sizeof(magic), 0) != sizeof(magic))
@@ -175,34 +180,11 @@ void recvAndParsePayload(int fd)
     std::cout << "Received Payload: " << receivedData << std::endl;
 
     // Clean up
-    // Parse the received payload as JSON
-    rapidjson::Document document;
-    document.Parse(payload, payloadSize);
-
-    // Check if parsing was successful
-    if (document.HasParseError()) {
-        std::cerr << "Error parsing payload as JSON" << std::endl;
-        delete[] payload;
-        return;
-    }
-
-    // Extract information from the JSON document
-    if (document.HasMember("message") && document["message"].IsString()) {
-        std::string message = document["message"].GetString();
-        std::cout << "Message: " << message << std::endl;
-    }
-
-    if (document.HasMember("sender") && document["sender"].IsString()) {
-        std::string sender = document["sender"].GetString();
-        std::cout << "Sender: " << sender << std::endl;
-    }
-
-    if (document.HasMember("timestamp") && document["timestamp"].IsString()) {
-        std::string timestamp = document["timestamp"].GetString();
-        std::cout << "Timestamp: " << timestamp << std::endl;
-    }
-    // Clean up
     delete[] payload;
+    payload = nullptr;
+
+    // Process the received payload
+    executor.processJsonCommand(fd, receivedData);
 }
 
 #include <thread>

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "conduits.h"
 #include "rapidjson/document.h"
 
@@ -23,6 +24,38 @@ std::vector<ConduitParser::Conduit> ConduitParser::parseConduits(const std::stri
     return conduits;
 }
 
+void ConduitsCollection::deleteFd(int fd) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto& conduit : conduits_) {
+        conduit.fileDescriptors.erase(std::remove(conduit.fileDescriptors.begin(), conduit.fileDescriptors.end(), fd), conduit.fileDescriptors.end());
+    }
+}
+
+void ConduitsCollection::addFd(const std::string& name, int fd) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto conduit = std::find_if(conduits_.begin(), conduits_.end(), [&name](const ConduitParser::Conduit& conduit) {
+        return conduit.name == name;
+    });
+
+    if (conduit != conduits_.end()) {
+        // Check if the file descriptor already exists in the conduit
+        if (std::find(conduit->fileDescriptors.begin(), conduit->fileDescriptors.end(), fd) == conduit->fileDescriptors.end()) {
+            conduit->fileDescriptors.push_back(fd);
+        }
+    }
+}
+
+void ConduitsCollection::deleteFd(const std::string& name, int fd) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto conduit = std::find_if(conduits_.begin(), conduits_.end(), [&name](const ConduitParser::Conduit& conduit) {
+        return conduit.name == name;
+    });
+
+    if (conduit != conduits_.end()) {
+        conduit->fileDescriptors.erase(std::remove(conduit->fileDescriptors.begin(), conduit->fileDescriptors.end(), fd), conduit->fileDescriptors.end());
+    }
+}
+
 ConduitsCollection& ConduitsCollection::getInstance() {
     static ConduitsCollection instance;
     static bool initialized = false;
@@ -33,8 +66,22 @@ ConduitsCollection& ConduitsCollection::getInstance() {
     return instance;
 }
 
-const std::vector<ConduitParser::Conduit>& ConduitsCollection::getConduits() const {
+const std::vector<ConduitParser::Conduit>& ConduitsCollection::getConduits() {
+    std::lock_guard<std::mutex> lock(mutex_);
     return conduits_;
+}
+
+const ConduitParser::Conduit& ConduitsCollection::getConduit(const std::string& name) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto conduit = std::find_if(conduits_.begin(), conduits_.end(), [&name](const ConduitParser::Conduit& conduit) {
+        return conduit.name == name;
+    });
+
+    if (conduit != conduits_.end()) {
+        return *conduit;
+    } else {
+        throw std::runtime_error("Conduit not found: " + name);
+    }
 }
 
 void ConduitsCollection::loadConfig(const std::string& filename) {

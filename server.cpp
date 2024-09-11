@@ -57,16 +57,48 @@ void Server::httpCallback(struct evhttp_request* req, void* arg) {
     std::vector<ConduitParser::Conduit> conduits = conduitsCollection.getConduits();
 
     // Generate the HTML for the list of Conduits
-    std::string conduitListHtml = "<ul>";
+    std::string conduitListHtml = "<table>";
+    conduitListHtml += "<tr><th>Conduit Name</th><th>File Descriptors</th></tr>";
     for (const ConduitParser::Conduit& conduit : conduits) {
-        conduitListHtml += "<li>" + conduit.name + "</li>";
+        conduitListHtml += "<tr>";
+        conduitListHtml += "<td>" + conduit.name + "</td>";
+        conduitListHtml += "<td>";
+        for (const int fd : conduit.fileDescriptors) {
+            conduitListHtml += std::to_string(fd) + ", ";
+        }
+        conduitListHtml += "</td>";
+        conduitListHtml += "</tr>";
     }
-    conduitListHtml += "</ul>";
+    conduitListHtml += "</table>";
 
     // Insert the conduitListHtml into the HTML
     size_t pos = html.find("</body>"); // Or some other suitable place
     if (pos != std::string::npos) {
         html.insert(pos, conduitListHtml);
+    }
+
+    // Add CSS style for the table
+    std::string cssStyle = "<style>";
+    cssStyle += "table {";
+    cssStyle += "    border-collapse: collapse;";
+    cssStyle += "    width: 100%;";
+    cssStyle += "}";
+    cssStyle += "th, td {";
+    cssStyle += "    text-align: left;";
+    cssStyle += "    padding: 8px;";
+    cssStyle += "}";
+    cssStyle += "th {";
+    cssStyle += "    background-color: #4CAF50;";
+    cssStyle += "    color: white;";
+    cssStyle += "}";
+    cssStyle += "tr:nth-child(even) {";
+    cssStyle += "    background-color: #f2f2f2;";
+    cssStyle += "}";
+    cssStyle += "</style>";
+
+    pos = html.find("<head>"); // Find the position to insert the CSS style
+    if (pos != std::string::npos) {
+        html.insert(pos + 6, cssStyle);
     }
 
     struct evbuffer* responseBuffer = evbuffer_new();

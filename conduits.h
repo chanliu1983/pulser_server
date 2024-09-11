@@ -11,6 +11,8 @@ public:
         std::string name;
         std::string property1;
         std::string property2;
+
+        std::vector<int> fileDescriptors;
     };
 
     std::vector<Conduit> parseConduits(const std::string& jsonData);
@@ -23,7 +25,12 @@ class ConduitsCollection {
 public:
     static ConduitsCollection& getInstance();
 
-    const std::vector<ConduitParser::Conduit>& getConduits() const;
+    const std::vector<ConduitParser::Conduit>& getConduits();
+    const ConduitParser::Conduit& getConduit(const std::string& name);
+
+    void deleteFd(int fd);
+    void deleteFd(const std::string& name, int fd);
+    void addFd(const std::string& name, int fd);
 
 private:
     void loadConfig(const std::string& filename);

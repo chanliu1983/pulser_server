@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Display myVar Value</title>
+    <title>List of Conduit</title>
     <style>
         ul {
             list-style-type: none;
@@ -23,6 +23,12 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
+            function refreshPage() {
+                location.reload();
+            }
+
+            setInterval(refreshPage, 5000);
+
             $.each(myVar, function(fileDescriptor, values) {
                 var listItem = $("<li>").text(fileDescriptor + ": " + values.join(", "));
                 $("#fileDescriptors").append(listItem);
