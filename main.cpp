@@ -9,6 +9,7 @@
 #include <map>
 #include "main.h"
 #include "server.h"
+#include "conduits.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -211,6 +212,8 @@ void runWebServer(Server& server) {
 }
 
 int main() {
+    ConduitsCollection& conduits = ConduitsCollection::getInstance();
+
     Server server;
     std::thread serverThread(runWebServer, std::ref(server));
     serverThread.detach();

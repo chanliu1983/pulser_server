@@ -1,4 +1,5 @@
 #include "server.h"
+#include "conduits.h" // For ConduitsCollection, Conduit
 #include <iostream>  // For std::cerr and std::endl
 #include <stdexcept> // For std::runtime_error
 #include <cstring>   // For strlen
@@ -51,20 +52,21 @@ void Server::httpCallback(struct evhttp_request* req, void* arg) {
     std::string html((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     file.close();
 
-    // Insert the variable into the HTML (e.g., in a script tag)
-    std::string data = R"(
-        <script>
-            var myVar = {
-                fileDescriptor1: ["value1", "value2", "value3"],
-                fileDescriptor2: ["value4", "value5", "value6"],
-                fileDescriptor3: ["value7", "value8", "value9"],
-                fileDescriptor4: ["value10", "value11", "value12"]
-            };
-        </script>
-    )";
-    size_t pos = html.find("</head>"); // Or some other suitable place
+    // Call ConduitsCollection to get list of Conduits
+    ConduitsCollection& conduitsCollection = ConduitsCollection::getInstance();
+    std::vector<ConduitParser::Conduit> conduits = conduitsCollection.getConduits();
+
+    // Generate the HTML for the list of Conduits
+    std::string conduitListHtml = "<ul>";
+    for (const ConduitParser::Conduit& conduit : conduits) {
+        conduitListHtml += "<li>" + conduit.name + "</li>";
+    }
+    conduitListHtml += "</ul>";
+
+    // Insert the conduitListHtml into the HTML
+    size_t pos = html.find("</body>"); // Or some other suitable place
     if (pos != std::string::npos) {
-        html.insert(pos, data);
+        html.insert(pos, conduitListHtml);
     }
 
     struct evbuffer* responseBuffer = evbuffer_new();

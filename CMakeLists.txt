@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Add the executable
-add_executable(main main.cpp server.cpp)
+add_executable(main main.cpp server.cpp conduits.cpp)
 
 # Link the required libraries
 target_link_libraries(main PRIVATE event z pthread)

@@ -1,0 +1,25 @@
+{
+    "conduits": [
+        {
+            "name": "Conduit 1",
+            "config": {
+                "property1": "value1",
+                "property2": "value2"
+            }
+        },
+        {
+            "name": "Conduit 2",
+            "config": {
+                "property1": "value3",
+                "property2": "value4"
+            }
+        },
+        {
+            "name": "Conduit 3",
+            "config": {
+                "property1": "value5",
+                "property2": "value6"
+            }
+        }
+    ]
+}
