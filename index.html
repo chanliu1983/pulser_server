@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Display myVar Value</title>
+    <style>
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        
+        li {
+            margin-bottom: 10px;
+            background-color: #f2f2f2;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>myVar Value:</h1>
+    <ul id="fileDescriptors"></ul>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $.each(myVar, function(fileDescriptor, values) {
+                var listItem = $("<li>").text(fileDescriptor + ": " + values.join(", "));
+                $("#fileDescriptors").append(listItem);
+            });
+        });
+    </script>
+</body>
+</html>

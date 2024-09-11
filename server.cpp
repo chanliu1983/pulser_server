@@ -2,6 +2,7 @@
 #include <iostream>  // For std::cerr and std::endl
 #include <stdexcept> // For std::runtime_error
 #include <cstring>   // For strlen
+#include <fstream>   // For std::ifstream
 #include <event2/event.h> // For event_base_new, event_base_free, event_base_dispatch
 #include <event2/http.h>  // For evhttp_new, evhttp_free, evhttp_bind_socket, evhttp_set_gencb, evhttp_request, evbuffer_new, evbuffer_free, evhttp_send_error, evhttp_send_reply, evhttp_add_header, evhttp_request_get_output_headers, evbuffer_add
 
@@ -39,6 +40,33 @@ void Server::start(int port) {
 }
 
 void Server::httpCallback(struct evhttp_request* req, void* arg) {
+    // Load the index.html file from disk
+    std::ifstream file("index.html");
+    if (!file.is_open()) {
+        std::cerr << "Failed to open index.html" << std::endl;
+        evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
+        return;
+    }
+
+    std::string html((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
+    // Insert the variable into the HTML (e.g., in a script tag)
+    std::string data = R"(
+        <script>
+            var myVar = {
+                fileDescriptor1: ["value1", "value2", "value3"],
+                fileDescriptor2: ["value4", "value5", "value6"],
+                fileDescriptor3: ["value7", "value8", "value9"],
+                fileDescriptor4: ["value10", "value11", "value12"]
+            };
+        </script>
+    )";
+    size_t pos = html.find("</head>"); // Or some other suitable place
+    if (pos != std::string::npos) {
+        html.insert(pos, data);
+    }
+
     struct evbuffer* responseBuffer = evbuffer_new();
     if (!responseBuffer) {
         std::cerr << "Failed to create response buffer" << std::endl;
@@ -46,12 +74,9 @@ void Server::httpCallback(struct evhttp_request* req, void* arg) {
         return;
     }
 
-    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/plain");
-
-    const char* responseText = "Hello, World!";
-    evbuffer_add(responseBuffer, responseText, strlen(responseText));
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/html");
+    evbuffer_add(responseBuffer, html.c_str(), html.size());
 
     evhttp_send_reply(req, HTTP_OK, "OK", responseBuffer);
-
     evbuffer_free(responseBuffer);
 }
