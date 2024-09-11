@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstring>
 #include <zlib.h>
+#include <signal.h>
 #include <map>
 #include "main.h"
 #include "server.h"
@@ -194,6 +195,9 @@ void runWebServer(Server& server) {
 }
 
 int main() {
+    // Ignore the SIGPIPE signal
+    signal(SIGPIPE, SIG_IGN);
+
     ConduitsCollection& conduits = ConduitsCollection::getInstance();
 
     Server server;

@@ -33,6 +33,9 @@ void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand)
     std::string msg = document["message"].GetString();
     std::string timestamp = document["timestamp"].GetString();
 
+    // print time stamp
+    std::cout << "Received timestamp: " << timestamp << std::endl;
+
     if (action == "connect") {
         connect(fd, msg);
     } else if (action == "disconnect") {
@@ -104,7 +107,11 @@ void Executor::send(const int& fd, const std::string& value, const std::string& 
         size_t bytesSent = write(targetFd, responseStr.c_str(), responseStr.size());
 
         if (bytesSent < 0) {
-            std::cerr << "Error sending response" << std::endl;
+            if (errno == EPIPE) {
+                std::cerr << "Error: Broken pipe  ==>" << target << std::endl;
+            } else {
+                std::cerr << "Error sending response: " << strerror(errno) << std::endl;
+            }
         }
     }
 }

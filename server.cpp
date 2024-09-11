@@ -101,6 +101,18 @@ void Server::httpCallback(struct evhttp_request* req, void* arg) {
         html.insert(pos + 6, cssStyle);
     }
 
+    // also add total number of fd on the page
+    int totalFd = 0;
+    for (const ConduitParser::Conduit& conduit : conduits) {
+        totalFd += conduit.fileDescriptors.size();
+    }
+
+    std::string totalFdHtml = "<p>Total number of file descriptors: " + std::to_string(totalFd) + "</p>";
+    pos = html.find("</body>"); // Or some other suitable place
+    if (pos != std::string::npos) {
+        html.insert(pos, totalFdHtml);
+    }
+
     struct evbuffer* responseBuffer = evbuffer_new();
     if (!responseBuffer) {
         std::cerr << "Failed to create response buffer" << std::endl;
