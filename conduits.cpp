@@ -45,6 +45,19 @@ void ConduitsCollection::addFd(const std::string& name, int fd) {
     }
 }
 
+bool ConduitsCollection::isFdInConduit(const std::string& name, int fd) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto conduit = std::find_if(conduits_.begin(), conduits_.end(), [&name](const ConduitParser::Conduit& conduit) {
+        return conduit.name == name;
+    });
+
+    if (conduit != conduits_.end()) {
+        return std::find(conduit->fileDescriptors.begin(), conduit->fileDescriptors.end(), fd) != conduit->fileDescriptors.end();
+    }
+
+    return false;
+}
+
 void ConduitsCollection::deleteFd(const std::string& name, int fd) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto conduit = std::find_if(conduits_.begin(), conduits_.end(), [&name](const ConduitParser::Conduit& conduit) {

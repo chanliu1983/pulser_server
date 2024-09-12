@@ -69,6 +69,12 @@ void Executor::disconnect(const int& fd, const std::string& value) {
 void Executor::send(const int& fd, const std::string& value, const std::string& target) {
     // Send implementation
     std::cout << "Sending: " << value << std::endl;
+
+    if (!ConduitsCollection::getInstance().isFdInConduit(target, fd)) {
+        std::cerr << "Error: File descriptor not in conduit" << std::endl;
+        return;
+    }
+
     const ConduitParser::Conduit& conduit = ConduitsCollection::getInstance().getConduit(target);
 
     for (int targetFd : conduit.fileDescriptors) {

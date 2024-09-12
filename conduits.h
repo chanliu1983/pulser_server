@@ -32,6 +32,8 @@ public:
     void deleteFd(const std::string& name, int fd);
     void addFd(const std::string& name, int fd);
 
+    bool isFdInConduit(const std::string& name, int fd);
+
 private:
     void loadConfig(const std::string& filename);
 

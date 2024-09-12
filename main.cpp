@@ -7,6 +7,7 @@
 #include <cstring>
 #include <zlib.h>
 #include <signal.h>
+#include <thread>
 #include <map>
 #include "main.h"
 #include "server.h"
@@ -53,6 +54,9 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
             evutil_closesocket(fd);
             ConduitsCollection::getInstance().deleteFd(fd);
 
+            // Remove the closed socket from the connections vector
+            connections.erase(std::remove(connections.begin(), connections.end(), fd), connections.end());
+
             // Retrieve the event pointer from the map
             auto it0 = eventMap.find(fd);
             if (it0 == eventMap.end()) {
@@ -73,6 +77,10 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
                 // Close the socket
                 evutil_closesocket(fd);
                 ConduitsCollection::getInstance().deleteFd(fd);
+
+                // Remove the closed socket from the connections vector
+                connections.erase(std::remove(connections.begin(), connections.end(), fd), connections.end());
+
                 // Retrieve the event pointer from the map
                 auto it = eventMap.find(fd);
                 if (it == eventMap.end()) {
@@ -154,14 +162,27 @@ void recvAndParsePayload(int fd)
 
     // Receive the payload data
     int totalBytesRead = 0;
+    int eagainCount = 0;
     while (totalBytesRead < payloadSize)
     {
         int bytesRead = recv(fd, payload + totalBytesRead, payloadSize - totalBytesRead, 0);
         if (bytesRead <= 0)
         {
-            std::cerr << "Error receiving payload data: " << strerror(errno) << std::endl;
-            delete[] payload;
-            return;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                // No data available (non-blocking mode), try again after 500 ms
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                eagainCount++;
+                if (eagainCount > 3) {
+                    std::cerr << "Error receiving payload data: EAGAIN exceeded" << std::endl;
+                    delete[] payload;
+                    return;
+                }
+                continue;
+            } else {
+                std::cerr << "Error receiving payload data: " << strerror(errno) << std::endl;
+                delete[] payload;
+                return;
+            }
         }
         totalBytesRead += bytesRead;
     }
