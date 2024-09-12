@@ -28,11 +28,6 @@
             }
 
             setInterval(refreshPage, 5000);
-
-            $.each(myVar, function(fileDescriptor, values) {
-                var listItem = $("<li>").text(fileDescriptor + ": " + values.join(", "));
-                $("#fileDescriptors").append(listItem);
-            });
         });
     </script>
 </body>

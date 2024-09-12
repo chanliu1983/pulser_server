@@ -11,19 +11,14 @@
 #include <map>
 #include "main.h"
 #include "server.h"
+#include "events.h"
 #include "conduits.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
-std::vector<evutil_socket_t> connections; // Store accepted connections
-std::map<evutil_socket_t, event*> eventMap; // Map to store event pointers
-
 void acceptCallback(evconnlistener* listener, evutil_socket_t fd, sockaddr* address, int socklen, void* arg) {
     std::cout << "Accepted connection" << std::endl;
-
-    // Add the new connection to the collection
-    connections.push_back(fd);
 
     // Set the socket to non-blocking mode
     evutil_make_socket_nonblocking(fd);
@@ -34,10 +29,12 @@ void acceptCallback(evconnlistener* listener, evutil_socket_t fd, sockaddr* addr
     event_add(readEvent, nullptr);
 
     // Store the event pointer in the map
-    eventMap[fd] = readEvent;
+    EventsObjectCollection::getInstance().addEventObject(fd, readEvent);
 }
 
 void readCallback(evutil_socket_t fd, short events, void* arg) {
+    static EventsObjectCollection& eventObjects = EventsObjectCollection::getInstance();
+
     if (events & EV_READ) {
         char buffer[1];
         // Check if the socket has been closed
@@ -45,27 +42,14 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
         if (result == 0) {
             // Socket has been closed
             std::cout << "Socket closed by the other side" << std::endl;
-            // Remove the closed socket from the connections vector
-            auto it = std::find(connections.begin(), connections.end(), fd);
-            if (it != connections.end()) {
-                connections.erase(it);
-            }
+
             // Close the socket
             evutil_closesocket(fd);
             ConduitsCollection::getInstance().deleteFd(fd);
 
-            // Remove the closed socket from the connections vector
-            connections.erase(std::remove(connections.begin(), connections.end(), fd), connections.end());
-
-            // Retrieve the event pointer from the map
-            auto it0 = eventMap.find(fd);
-            if (it0 == eventMap.end()) {
-                std::cerr << "Event not found for socket: " << fd << std::endl;
-                return;
-            }
-            event* readEvent = it0->second;
+            event* readEvent = eventObjects.getEventObject(fd);
             event_free(readEvent);
-            eventMap.erase(fd);
+            eventObjects.deleteEventObject(fd);
         } else if (result < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // No data available (non-blocking mode)
@@ -78,18 +62,9 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
                 evutil_closesocket(fd);
                 ConduitsCollection::getInstance().deleteFd(fd);
 
-                // Remove the closed socket from the connections vector
-                connections.erase(std::remove(connections.begin(), connections.end(), fd), connections.end());
-
-                // Retrieve the event pointer from the map
-                auto it = eventMap.find(fd);
-                if (it == eventMap.end()) {
-                    std::cerr << "Event not found for socket: " << fd << std::endl;
-                    return;
-                }
-                event* readEvent = it->second;
+                event* readEvent = eventObjects.getEventObject(fd);
                 event_free(readEvent);
-                eventMap.erase(fd);
+                eventObjects.deleteEventObject(fd);
             }
         } else {
             // Socket is still open, continue reading
@@ -257,15 +232,13 @@ int main() {
 
     // Create a timeout event
     event* timeoutEvent = event_new(base, -1, EV_TIMEOUT | EV_PERSIST, [](evutil_socket_t fd, short events, void* arg) {
-        // Print out the number of connections
-        std::cout << "Number of connections: " << connections.size() << std::endl;
-
-        // Print out all the file descriptor (fd) IDs
-        std::cout << "File Descriptor IDs: ";
-        for (const auto& fd : connections) {
-            std::cout << fd << " ";
+        // Check if the event map size has changed
+        static size_t prevSize = 0;
+        size_t currentSize = EventsObjectCollection::getInstance().size();
+        if (currentSize != prevSize) {
+            std::cout << "Event map count: " << currentSize << std::endl;
+            prevSize = currentSize;
         }
-        std::cout << std::endl;
     }, nullptr);
 
     // Set the timeout event to trigger every 1 second
