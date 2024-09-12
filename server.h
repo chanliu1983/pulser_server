@@ -13,6 +13,9 @@ public:
 private:
     static void httpCallback(struct evhttp_request* req, void* arg);
 
+    static void handleRootRequest(struct evhttp_request* req);
+    static void handleDataRequest(struct evhttp_request* req);
+
     struct event_base* base;
     struct evhttp* httpServer;
 };

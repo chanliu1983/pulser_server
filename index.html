@@ -17,17 +17,34 @@
     </style>
 </head>
 <body>
-    <h1>myVar Value:</h1>
+    <h1>File Descriptor Conduit Map:</h1>
     <ul id="fileDescriptors"></ul>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
-            function refreshPage() {
-                location.reload();
+            function refreshData() {
+                $.ajax({
+                    url: '/data',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        // Clear the existing list
+                        $('#fileDescriptors').empty();
+
+                        // Iterate over the conduits and append them to the list
+                        data.conduits.forEach(function(conduit) {
+                            var listItem = $('<li>').text(conduit.name + ': ' + conduit.fileDescriptors.join(', '));
+                            $('#fileDescriptors').append(listItem);
+                        });
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('Error:', error);
+                    }
+                });
             }
 
-            setInterval(refreshPage, 5000);
+            setInterval(refreshData, 2000);
         });
     </script>
 </body>

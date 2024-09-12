@@ -6,6 +6,9 @@
 #include <fstream>   // For std::ifstream
 #include <event2/event.h> // For event_base_new, event_base_free, event_base_dispatch
 #include <event2/http.h>  // For evhttp_new, evhttp_free, evhttp_bind_socket, evhttp_set_gencb, evhttp_request, evbuffer_new, evbuffer_free, evhttp_send_error, evhttp_send_reply, evhttp_add_header, evhttp_request_get_output_headers, evbuffer_add
+#include "rapidjson/document.h" // For rapidjson::Document
+#include "rapidjson/writer.h"   // For rapidjson::Writer
+#include "rapidjson/stringbuffer.h" // For rapidjson::StringBuffer
 
 Server::Server() : base(event_base_new()), httpServer(evhttp_new(base)) {
     if (!base) {
@@ -40,7 +43,7 @@ void Server::start(int port) {
     event_base_dispatch(base);
 }
 
-void Server::httpCallback(struct evhttp_request* req, void* arg) {
+void Server::handleRootRequest(struct evhttp_request* req) {
     // Load the index.html file from disk
     std::ifstream file("index.html");
     if (!file.is_open()) {
@@ -51,67 +54,6 @@ void Server::httpCallback(struct evhttp_request* req, void* arg) {
 
     std::string html((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     file.close();
-
-    // Call ConduitsCollection to get list of Conduits
-    ConduitsCollection& conduitsCollection = ConduitsCollection::getInstance();
-    std::vector<ConduitParser::Conduit> conduits = conduitsCollection.getConduits();
-
-    // Generate the HTML for the list of Conduits
-    std::string conduitListHtml = "<table>";
-    conduitListHtml += "<tr><th>Conduit Name</th><th>File Descriptors</th></tr>";
-    for (const ConduitParser::Conduit& conduit : conduits) {
-        conduitListHtml += "<tr>";
-        conduitListHtml += "<td>" + conduit.name + "</td>";
-        conduitListHtml += "<td>";
-        for (const int fd : conduit.fileDescriptors) {
-            conduitListHtml += std::to_string(fd) + ", ";
-        }
-        conduitListHtml += "</td>";
-        conduitListHtml += "</tr>";
-    }
-    conduitListHtml += "</table>";
-
-    // Insert the conduitListHtml into the HTML
-    size_t pos = html.find("</body>"); // Or some other suitable place
-    if (pos != std::string::npos) {
-        html.insert(pos, conduitListHtml);
-    }
-
-    // Add CSS style for the table
-    std::string cssStyle = "<style>";
-    cssStyle += "table {";
-    cssStyle += "    border-collapse: collapse;";
-    cssStyle += "    width: 100%;";
-    cssStyle += "}";
-    cssStyle += "th, td {";
-    cssStyle += "    text-align: left;";
-    cssStyle += "    padding: 8px;";
-    cssStyle += "}";
-    cssStyle += "th {";
-    cssStyle += "    background-color: #4CAF50;";
-    cssStyle += "    color: white;";
-    cssStyle += "}";
-    cssStyle += "tr:nth-child(even) {";
-    cssStyle += "    background-color: #f2f2f2;";
-    cssStyle += "}";
-    cssStyle += "</style>";
-
-    pos = html.find("<head>"); // Find the position to insert the CSS style
-    if (pos != std::string::npos) {
-        html.insert(pos + 6, cssStyle);
-    }
-
-    // also add total number of fd on the page
-    int totalFd = 0;
-    for (const ConduitParser::Conduit& conduit : conduits) {
-        totalFd += conduit.fileDescriptors.size();
-    }
-
-    std::string totalFdHtml = "<p>Total number of file descriptors: " + std::to_string(totalFd) + "</p>";
-    pos = html.find("</body>"); // Or some other suitable place
-    if (pos != std::string::npos) {
-        html.insert(pos, totalFdHtml);
-    }
 
     struct evbuffer* responseBuffer = evbuffer_new();
     if (!responseBuffer) {
@@ -125,4 +67,87 @@ void Server::httpCallback(struct evhttp_request* req, void* arg) {
 
     evhttp_send_reply(req, HTTP_OK, "OK", responseBuffer);
     evbuffer_free(responseBuffer);
+}
+
+void Server::handleDataRequest(struct evhttp_request* req) {
+    struct evbuffer* responseBuffer = evbuffer_new();
+    if (!responseBuffer) {
+        std::cerr << "Failed to create response buffer" << std::endl;
+        evhttp_send_error(req, HTTP_INTERNAL, "Internal Server Error");
+        return;
+    }
+
+    // Call ConduitsCollection to get list of Conduits
+    ConduitsCollection& conduitsCollection = ConduitsCollection::getInstance();
+    std::vector<ConduitParser::Conduit> conduits = conduitsCollection.getConduits();
+
+    // Generate the JSON for the list of Conduits
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+
+    writer.StartObject();
+    writer.Key("conduits");
+    writer.StartArray();
+
+    for (size_t i = 0; i < conduits.size(); i++) {
+        const ConduitParser::Conduit& conduit = conduits[i];
+
+        writer.StartObject();
+        writer.Key("name");
+        writer.String(conduit.name.c_str());
+
+        writer.Key("fileDescriptors");
+        writer.StartArray();
+        for (size_t j = 0; j < conduit.fileDescriptors.size(); j++) {
+            int fd = conduit.fileDescriptors[j];
+            writer.Int(fd);
+        }
+        writer.EndArray();
+
+        writer.EndObject();
+    }
+
+    writer.EndArray();
+    writer.EndObject();
+
+    std::string jsonData = buffer.GetString();
+
+    // print json
+    // std::cout << "JSON Data: " << jsonData << std::endl;
+
+    evbuffer_add(responseBuffer, jsonData.c_str(), jsonData.size());
+
+    evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "application/json");
+    evhttp_send_reply(req, HTTP_OK, "OK", responseBuffer);
+    evbuffer_free(responseBuffer);
+}
+
+void Server::httpCallback(struct evhttp_request* req, void* arg) {
+    // Extract the URI from the request
+    const char* uri = evhttp_request_get_uri(req);
+    // std::cout << "Requested URI: " << uri << std::endl;
+
+    // Parse the URI
+    struct evhttp_uri* parsed_uri = evhttp_uri_parse(uri);
+    if (!parsed_uri) {
+        std::cerr << "Failed to parse URI" << std::endl;
+        evhttp_send_error(req, HTTP_BADREQUEST, 0);
+        return;
+    }
+
+    // Extract components of the URI
+    const char* path = evhttp_uri_get_path(parsed_uri);
+    const char* query = evhttp_uri_get_query(parsed_uri);
+
+    // std::cout << "Path: " << (path ? path : "") << std::endl;
+    // std::cout << "Query: " << (query ? query : "") << std::endl;
+
+    // Handle different paths
+    if (path && strcmp(path, "/") == 0) {
+        handleRootRequest(req);
+    } else if (path && strcmp(path, "/data") == 0) {
+        handleDataRequest(req);
+    } else {
+        evhttp_send_error(req, HTTP_NOTFOUND, 0);
+    }
 }
