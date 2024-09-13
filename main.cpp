@@ -11,7 +11,9 @@
 #include <map>
 #include "main.h"
 #include "server.h"
+#include "sender.h"
 #include "events.h"
+#include "compress.h"
 #include "conduits.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -73,114 +75,13 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
     }
 }
 
-struct DataFrame {
-    uint32_t magic; // Magic number to identify the payload
-    uint32_t size; // Size of the payload
-    uint32_t checksum; // Checksum of the payload
-    char payload[0]; // Payload data
-
-    // Constructor to initialize the struct
-    DataFrame(uint32_t payloadSize, const char* payloadData) {
-        magic = 0x12344321; // Set the magic number
-        size = payloadSize;
-        checksum = calculateChecksum(payloadData, payloadSize);
-        memcpy(payload, payloadData, payloadSize);
-    }
-
-    static uint32_t calculateChecksum(const char* data, uint32_t dataSize) {
-        return crc32(0L, reinterpret_cast<const Bytef*>(data), dataSize);
-    }
-};
-
 #include "executor.h"
 
 void recvAndParsePayload(int fd)
 {
     static Executor executor; // Create an instance of the Executor class
 
-    // Receive the magic
-    uint32_t magic;
-    if (recv(fd, reinterpret_cast<char*>(&magic), sizeof(magic), 0) != sizeof(magic))
-    {
-        std::cerr << "Error receiving magic: " << strerror(errno) << std::endl;
-        return;
-    }
-
-    // print magic as 0x hex
-    std::cout << "Received Magic: 0x" << std::hex << magic << std::endl;
-
-    // Receive the payload size
-    uint32_t payloadSize;
-    if (recv(fd, reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize), 0) != sizeof(payloadSize))
-    {
-        std::cerr << "Error receiving payload size: " << strerror(errno) << std::endl;
-        return;
-    }
-
-    // Receive the checksum
-    uint32_t checksum;
-    if (recv(fd, reinterpret_cast<char*>(&checksum), sizeof(checksum), 0) != sizeof(checksum))
-    {
-        std::cerr << "Error receiving checksum: " << strerror(errno) << std::endl;
-        return;
-    }
-
-    // Check if the received magic is valid
-    if (magic != 0x12344321)
-    {
-        std::cerr << "Invalid magic" << std::endl;
-        return;
-    }
-
-    // Allocate memory for the payload
-    char* payload = new char[payloadSize];
-
-    // Receive the payload data
-    int totalBytesRead = 0;
-    int eagainCount = 0;
-    while (totalBytesRead < payloadSize)
-    {
-        int bytesRead = recv(fd, payload + totalBytesRead, payloadSize - totalBytesRead, 0);
-        if (bytesRead <= 0)
-        {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // No data available (non-blocking mode), try again after 500 ms
-                std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                eagainCount++;
-                if (eagainCount > 3) {
-                    std::cerr << "Error receiving payload data: EAGAIN exceeded" << std::endl;
-                    delete[] payload;
-                    return;
-                }
-                continue;
-            } else {
-                std::cerr << "Error receiving payload data: " << strerror(errno) << std::endl;
-                delete[] payload;
-                return;
-            }
-        }
-        totalBytesRead += bytesRead;
-    }
-
-    // Calculate the checksum of the received payload
-    uint32_t calculatedChecksum = DataFrame::calculateChecksum(payload, payloadSize);
-    // Check if the received checksum is valid
-    if (checksum != calculatedChecksum)
-    {
-        std::cerr << "Invalid checksum" << std::endl;
-        delete[] payload;
-        return;
-    }
-
-    // Process the received payload
-    std::string receivedData(payload, payloadSize);
-    std::cout << "Received Payload: " << receivedData << std::endl;
-
-    // Clean up
-    delete[] payload;
-    payload = nullptr;
-
-    // Process the received payload
+    std::string receivedData = SenderUtility::recvRawPayload(fd);
     executor.processJsonCommand(fd, receivedData);
 }
 

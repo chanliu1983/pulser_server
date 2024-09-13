@@ -66,6 +66,8 @@ void Executor::disconnect(const int& fd, const std::string& value) {
     ConduitsCollection::getInstance().deleteFd(value, fd);
 }
 
+#include "sender.h"
+
 void Executor::send(const int& fd, const std::string& value, const std::string& target) {
     // Send implementation
     std::cout << "Sending: " << value << std::endl;
@@ -109,15 +111,6 @@ void Executor::send(const int& fd, const std::string& value, const std::string& 
         response.Accept(writer);
         std::string responseStr = buffer.GetString();
 
-        // Send the response back
-        size_t bytesSent = write(targetFd, responseStr.c_str(), responseStr.size());
-
-        if (bytesSent < 0) {
-            if (errno == EPIPE) {
-                std::cerr << "Error: Broken pipe  ==>" << target << std::endl;
-            } else {
-                std::cerr << "Error sending response: " << strerror(errno) << std::endl;
-            }
-        }
+        SenderUtility::sendRawPayload(targetFd, responseStr);
     }
 }
