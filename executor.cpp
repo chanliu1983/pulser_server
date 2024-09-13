@@ -106,6 +106,10 @@ void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand)
         serverNameValue.SetString(serverName_.c_str(), serverName_.size(), response.GetAllocator());
         response.AddMember("server", serverNameValue, response.GetAllocator());
 
+        rapidjson::Value keyName;
+        keyName.SetString(key.c_str(), key.size(), response.GetAllocator());
+        response.AddMember("key", keyName, response.GetAllocator());
+
         rapidjson::Value valueValue;
         valueValue.SetString(value.c_str(), value.size(), response.GetAllocator());
         response.AddMember("value", valueValue, response.GetAllocator());
