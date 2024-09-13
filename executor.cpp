@@ -10,6 +10,9 @@
 #include "executor.h" // Include the executor.h file
 #include "conduits.h" // Include the conduits.h file
 
+// Constructor for the Executor class
+Executor::Executor(MulticastHandler* multicastHandler) : multicastHandler_(multicastHandler) {}
+
 void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand) {
     rapidjson::Document document;
     document.Parse(jsonCommand.c_str());
@@ -111,6 +114,6 @@ void Executor::send(const int& fd, const std::string& value, const std::string& 
         response.Accept(writer);
         std::string responseStr = buffer.GetString();
 
-        SenderUtility::sendRawPayload(targetFd, responseStr);
+        SenderUtility::sendRawPayloadAndBroadcast(targetFd, responseStr, multicastHandler_);
     }
 }

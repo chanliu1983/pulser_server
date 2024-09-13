@@ -70,6 +70,13 @@ void SenderUtility::sendRawPayload(int fd, const std::string& source) {
     std::cout << "Payload sent successfully" << std::endl;
 }
 
+void SenderUtility::sendRawPayloadAndBroadcast(int fd, const std::string& source, MulticastHandler* multicastHandler) {
+    sendRawPayload(fd, source); // Send the payload to the specified file descriptor
+
+    // Broadcast the payload to the multicast group
+    multicastHandler->sendMessage(source);
+}
+
 std::string SenderUtility::recvRawPayload(int fd) {
     // Receive the magic
     uint32_t magic;

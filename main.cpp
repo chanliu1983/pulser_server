@@ -75,9 +75,11 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
 
 #include "executor.h"
 
+MulticastHandler multicastHandler("239.0.0.1", 16667);
+
 void recvAndParsePayload(int fd)
 {
-    static Executor executor; // Create an instance of the Executor class
+    static Executor executor(&multicastHandler); // Create an instance of the Executor class
 
     std::string receivedData = SenderUtility::recvRawPayload(fd);
     executor.processJsonCommand(fd, receivedData);
@@ -99,7 +101,6 @@ int main() {
     std::thread serverThread(runWebServer, std::ref(server));
     serverThread.detach();
 
-    MulticastHandler multicastHandler("239.0.0.1", 16667);
     std::thread multicastThread(&MulticastHandler::start, &multicastHandler);
 
     struct event_base* base;
