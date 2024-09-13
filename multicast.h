@@ -18,6 +18,8 @@ public:
     void stop();
     void sendMessage(const std::string& message);
 
+    void setMulticastAddressAndPort(const std::string& multicastAddress, int port);
+
 private:
     void setupSocket();
     void setupEvent();

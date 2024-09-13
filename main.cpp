@@ -11,6 +11,7 @@
 #include <map>
 #include "main.h"
 #include "server.h"
+#include "setting.h"
 #include "sender.h"
 #include "events.h"
 #include "compress.h"
@@ -76,6 +77,7 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
 #include "executor.h"
 
 MulticastHandler multicastHandler("239.0.0.1", 16667);
+int managementPort = 8080;
 
 void recvAndParsePayload(int fd)
 {
@@ -88,10 +90,16 @@ void recvAndParsePayload(int fd)
 #include <thread>
 
 void runWebServer(Server& server) {
-    server.start(8080);
+    server.start(managementPort);
 }
 
 int main() {
+    // load ini setting file
+    PulserConfig config("setting.ini");
+
+    managementPort = config.getManagementEndPointPort();
+    multicastHandler.setMulticastAddressAndPort(config.getClusterMultiCastIP(), config.getClusterMultiCastPort());
+
     // Ignore the SIGPIPE signal
     signal(SIGPIPE, SIG_IGN);
 

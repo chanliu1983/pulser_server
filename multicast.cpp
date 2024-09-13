@@ -118,3 +118,8 @@ void MulticastHandler::onMessageReceived(evutil_socket_t fd, short events, void*
     std::cout << "(Broadcast) Received message from: " << senderIP << std::endl;
     std::cout << "(Broadcast) Received message: " << buffer << std::endl;
 }
+
+void MulticastHandler::setMulticastAddressAndPort(const std::string& multicastAddress, int port) {
+    multicastAddress_ = multicastAddress;
+    port_ = port;
+}
