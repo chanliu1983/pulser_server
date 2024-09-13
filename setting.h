@@ -13,11 +13,13 @@ public:
     std::string getClusterMultiCastIP() const;
     int getClusterMultiCastPort() const;
     int getManagementEndPointPort() const;
+    int getConduitEndpointPort() const;
 
 private:
     std::string clusterMultiCastIP;
     int clusterMultiCastPort;
     int managementEndPointPort;
+    int conduitEndpointPort;
 
     static int ini_handler(void* user, const char* section, const char* name, const char* value);
 

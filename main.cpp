@@ -110,6 +110,7 @@ int main() {
     serverThread.detach();
 
     std::thread multicastThread(&MulticastHandler::start, &multicastHandler);
+    multicastThread.detach();
 
     struct event_base* base;
     struct evconnlistener* listener;
@@ -123,7 +124,7 @@ int main() {
 
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
-    sin.sin_port = htons(16666); // Replace with your desired port
+    sin.sin_port = htons(config.getConduitEndpointPort()); // Replace with your desired port
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
 
     listener = evconnlistener_new_bind(

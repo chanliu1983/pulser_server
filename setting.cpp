@@ -23,6 +23,10 @@ int PulserConfig::getManagementEndPointPort() const {
     return managementEndPointPort;
 }
 
+int PulserConfig::getConduitEndpointPort() const {
+    return conduitEndpointPort;
+}
+
 // INI handler function
 int PulserConfig::ini_handler(void* user, const char* section, const char* name, const char* value) {
     PulserConfig* config = static_cast<PulserConfig*>(user);
@@ -41,6 +45,8 @@ int PulserConfig::ini_handler(void* user, const char* section, const char* name,
             config->clusterMultiCastPort = std::stoi(value);
         } else if (std::string(name) == "ManagementEndPointPort") {
             config->managementEndPointPort = std::stoi(value);
+        } else if (std::string(name) == "ConduitEndpointPort") {
+            config->conduitEndpointPort = std::stoi(value);
         }
     }
 
