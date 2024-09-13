@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include <unistd.h>
+#include <ifaddrs.h> // Add this line
 
 MulticastHandler::MulticastHandler(const std::string& multicastAddress, int port)
     : multicastAddress_(multicastAddress), port_(port), sockfd_(-1), eventBase_(nullptr), recvEvent_(nullptr), running_(false) {}
@@ -100,6 +101,34 @@ void MulticastHandler::setupEvent() {
     event_base_dispatch(eventBase_);
 }
 
+std::string getOwnIP() {
+    struct ifaddrs* ifAddrStruct = nullptr;
+    struct ifaddrs* ifa = nullptr;
+    void* tmpAddrPtr = nullptr;
+    std::string ownIP = "";
+
+    getifaddrs(&ifAddrStruct);
+
+    for (ifa = ifAddrStruct; ifa != nullptr; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr->sa_family == AF_INET) {  // IPv4 address
+            tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
+            char addressBuffer[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+
+            if (strcmp(addressBuffer, "127.0.0.1") != 0 && strcmp(addressBuffer, "localhost") != 0) {
+                ownIP = addressBuffer;
+                break;
+            }
+        }
+    }
+
+    if (ifAddrStruct != nullptr) {
+        freeifaddrs(ifAddrStruct);
+    }
+
+    return ownIP;
+}
+
 void MulticastHandler::onMessageReceived(evutil_socket_t fd, short events, void* arg) {
     MulticastHandler* handler = static_cast<MulticastHandler*>(arg);
     
@@ -115,11 +144,25 @@ void MulticastHandler::onMessageReceived(evutil_socket_t fd, short events, void*
     buffer[recvLen] = '\0';
 
     std::string senderIP = inet_ntoa(senderAddr.sin_addr);
-    std::cout << "(Broadcast) Received message from: " << senderIP << std::endl;
-    std::cout << "(Broadcast) Received message: " << buffer << std::endl;
+
+    // Check if sender IP is equal to own IP
+    static std::string ownIP = getOwnIP();
+
+    // To Do : need to change, now is only for testing
+    if (senderIP == ownIP) {
+        return;
+    }
+
+    if (handler->onMessageReceivedCallback_) {
+        handler->onMessageReceivedCallback_(buffer);
+    }
 }
 
 void MulticastHandler::setMulticastAddressAndPort(const std::string& multicastAddress, int port) {
     multicastAddress_ = multicastAddress;
     port_ = port;
+}
+
+void MulticastHandler::setOnMessageReceivedCallback(std::function<void(const std::string&)> callback) {
+    onMessageReceivedCallback_ = callback;
 }

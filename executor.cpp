@@ -27,12 +27,23 @@ void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand)
         return;
     }
 
-    if (!document.HasMember("action") || !document.HasMember("message") || !document.HasMember("timestamp")) {
-        std::cout << "Invalid JSON format. Missing 'action', 'message', or 'timestamp' field." << std::endl;
+    if (!document.HasMember("message") || !document.HasMember("timestamp")) {
+        std::cout << "Invalid JSON format. Missing 'message' or 'timestamp' field." << std::endl;
         return;
     }
 
-    std::string action = document["action"].GetString();
+    std::string action;    
+
+    if (fd == -1) {
+        action = "send";
+    } else {
+        if (!document.HasMember("action")) {
+            std::cout << "Invalid JSON format. Missing 'action' field." << std::endl;
+            return;
+        }
+        action = document["action"].GetString();
+    }
+
     std::string msg = document["message"].GetString();
     std::string timestamp = document["timestamp"].GetString();
 
@@ -75,13 +86,13 @@ void Executor::send(const int& fd, const std::string& value, const std::string& 
     // Send implementation
     std::cout << "Sending: " << value << std::endl;
 
-    if (!ConduitsCollection::getInstance().isFdInConduit(target, fd)) {
+    if (fd != -1 && !ConduitsCollection::getInstance().isFdInConduit(target, fd)) {
         std::cerr << "Error: File descriptor not in conduit" << std::endl;
         return;
     }
 
     const ConduitParser::Conduit& conduit = ConduitsCollection::getInstance().getConduit(target);
-    std::string responseStr = createPayloadJson(value, fd);
+    std::string responseStr = createPayloadJson(value, fd, target);
 
     for (int targetFd : conduit.fileDescriptors) {
         if (targetFd == fd) {
@@ -92,10 +103,15 @@ void Executor::send(const int& fd, const std::string& value, const std::string& 
         SenderUtility::sendRawPayload(targetFd, responseStr);
     }
 
+    if (fd == -1 || isProcessed(responseStr)) {
+        return;
+    }
+
+    responseStr = addProcessedToJson(responseStr);
     SenderUtility::broadcastRawPayload(responseStr, multicastHandler_);
 }
 
-std::string Executor::createPayloadJson(const std::string &value, const int &fd)
+std::string Executor::createPayloadJson(const std::string &value, const int &fd, const std::string &target)
 {
     // Create a JSON object with "message", "source", and "timestamp" fields
     rapidjson::Document response;
@@ -116,9 +132,75 @@ std::string Executor::createPayloadJson(const std::string &value, const int &fd)
     timestampValue.SetString(timestamp.c_str(), timestamp.size() - 1, response.GetAllocator());
     response.AddMember("timestamp", timestampValue, response.GetAllocator());
 
+    rapidjson::Value targetValue;
+    targetValue.SetString(target.c_str(), target.size(), response.GetAllocator());
+    response.AddMember("target", targetValue, response.GetAllocator());
+
     // Convert the JSON object to a string
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     response.Accept(writer);
     return buffer.GetString();
+}
+
+std::string Executor::addProcessedToJson(const std::string &value)
+{
+    // Parse the JSON string
+    rapidjson::Document document;
+    document.Parse(value.c_str());
+
+    // Check if the JSON is valid
+    if (document.HasParseError()) {
+        std::cerr << "Error parsing JSON: " << rapidjson::GetParseError_En(document.GetParseError()) << std::endl;
+        return "";
+    }
+
+    // Check if the JSON is an object
+    if (!document.IsObject()) {
+        std::cerr << "Invalid JSON format. Expected an object." << std::endl;
+        return "";
+    }
+
+    // Add a new field to the JSON object
+    rapidjson::Value processedValue;
+    processedValue.SetBool(true);
+    document.AddMember("processed", processedValue, document.GetAllocator());
+
+    // Convert the JSON object to a string
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    document.Accept(writer);
+    return buffer.GetString();
+}
+
+bool Executor::isProcessed(const std::string &value)
+{
+    // Parse the JSON string
+    rapidjson::Document document;
+    document.Parse(value.c_str());
+
+    // Check if the JSON is valid
+    if (document.HasParseError()) {
+        std::cerr << "Error parsing JSON: " << rapidjson::GetParseError_En(document.GetParseError()) << std::endl;
+        return false;
+    }
+
+    // Check if the JSON is an object
+    if (!document.IsObject()) {
+        std::cerr << "Invalid JSON format. Expected an object." << std::endl;
+        return false;
+    }
+
+    // Check if the "processed" field is present
+    if (!document.HasMember("processed")) {
+        return false;
+    }
+
+    // Check if the "processed" field is a boolean
+    if (!document["processed"].IsBool()) {
+        return false;
+    }
+
+    // Get the value of the "processed" field
+    return document["processed"].GetBool();
 }

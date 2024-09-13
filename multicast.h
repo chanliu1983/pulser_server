@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <functional>
 #include <string>
 
 class MulticastHandler {
@@ -20,6 +21,9 @@ public:
 
     void setMulticastAddressAndPort(const std::string& multicastAddress, int port);
 
+    // Event callback hook for upper layer to receive messages which takes a lambda function as call back
+    void setOnMessageReceivedCallback(std::function<void(const std::string&)> callback);
+
 private:
     void setupSocket();
     void setupEvent();
@@ -31,6 +35,8 @@ private:
     struct event_base* eventBase_;
     struct event* recvEvent_;
     bool running_;
+
+    std::function<void(const std::string&)> onMessageReceivedCallback_;
     
     // Event callback for receiving messages
     static void onMessageReceived(evutil_socket_t fd, short events, void* arg);

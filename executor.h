@@ -14,7 +14,9 @@ private:
     void disconnect(const int& fd, const std::string& value);
     void send(const int &fd, const std::string &value, const std::string &target);
 
-    std::string createPayloadJson(const std::string &value, const int &fd);
+    std::string createPayloadJson(const std::string &value, const int &fd, const std::string &target);
+    std::string addProcessedToJson(const std::string &value);
+    bool isProcessed(const std::string &value);
 
 private:
     MulticastHandler *multicastHandler_;

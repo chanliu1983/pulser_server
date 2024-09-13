@@ -77,12 +77,11 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
 #include "executor.h"
 
 MulticastHandler multicastHandler("239.0.0.1", 16667);
+Executor executor(&multicastHandler);
 int managementPort = 8080;
 
 void recvAndParsePayload(int fd)
 {
-    static Executor executor(&multicastHandler); // Create an instance of the Executor class
-
     std::string receivedData = SenderUtility::recvRawPayload(fd);
     executor.processJsonCommand(fd, receivedData);
 }
@@ -98,7 +97,12 @@ int main() {
     PulserConfig config("setting.ini");
 
     managementPort = config.getManagementEndPointPort();
+
     multicastHandler.setMulticastAddressAndPort(config.getClusterMultiCastIP(), config.getClusterMultiCastPort());
+    multicastHandler.setOnMessageReceivedCallback([](const std::string& message) {
+        std::cout << "Received message from multicast: " << message << std::endl;
+        executor.processJsonCommand(-1, message);
+    });
 
     // Ignore the SIGPIPE signal
     signal(SIGPIPE, SIG_IGN);
