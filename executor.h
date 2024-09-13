@@ -12,10 +12,12 @@ public:
 private:
     void connect(const int& fd, const std::string& value);
     void disconnect(const int& fd, const std::string& value);
-    void send(const int& fd, const std::string& value, const std::string& target);
+    void send(const int &fd, const std::string &value, const std::string &target);
+
+    std::string createPayloadJson(const std::string &value, const int &fd);
 
 private:
-    MulticastHandler* multicastHandler_;
+    MulticastHandler *multicastHandler_;
 };
 
 #endif // EXECUTOR_H

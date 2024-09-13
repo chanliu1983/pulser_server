@@ -8,7 +8,7 @@
 class SenderUtility {
 public:
     static void sendRawPayload(int fd, const std::string& source);
-    static void sendRawPayloadAndBroadcast(int fd, const std::string& source, MulticastHandler* multicastHandler);
+    static void broadcastRawPayload(const std::string& source, MulticastHandler* multicastHandler);
     static std::string recvRawPayload(int fd);
 };
 

@@ -81,6 +81,7 @@ void Executor::send(const int& fd, const std::string& value, const std::string& 
     }
 
     const ConduitParser::Conduit& conduit = ConduitsCollection::getInstance().getConduit(target);
+    std::string responseStr = createPayloadJson(value, fd);
 
     for (int targetFd : conduit.fileDescriptors) {
         if (targetFd == fd) {
@@ -88,32 +89,36 @@ void Executor::send(const int& fd, const std::string& value, const std::string& 
         }
         // Send the message to each file descriptor
         std::cout << "Sending message to fd: " << targetFd << std::endl;
-
-        // Create a JSON object with "message", "source", and "timestamp" fields
-        rapidjson::Document response;
-        response.SetObject();
-
-        rapidjson::Value messageValue;
-        messageValue.SetString(value.c_str(), value.size(), response.GetAllocator());
-        response.AddMember("message", messageValue, response.GetAllocator());
-
-        rapidjson::Value sourceValue;
-        sourceValue.SetInt(fd);
-        response.AddMember("source", sourceValue, response.GetAllocator());
-
-        rapidjson::Value timestampValue;
-        std::time_t currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        std::string timestamp = std::ctime(&currentTime);
-
-        timestampValue.SetString(timestamp.c_str(), timestamp.size() - 1, response.GetAllocator());
-        response.AddMember("timestamp", timestampValue, response.GetAllocator());
-
-        // Convert the JSON object to a string
-        rapidjson::StringBuffer buffer;
-        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        response.Accept(writer);
-        std::string responseStr = buffer.GetString();
-
-        SenderUtility::sendRawPayloadAndBroadcast(targetFd, responseStr, multicastHandler_);
+        SenderUtility::sendRawPayload(targetFd, responseStr);
     }
+
+    SenderUtility::broadcastRawPayload(responseStr, multicastHandler_);
+}
+
+std::string Executor::createPayloadJson(const std::string &value, const int &fd)
+{
+    // Create a JSON object with "message", "source", and "timestamp" fields
+    rapidjson::Document response;
+    response.SetObject();
+
+    rapidjson::Value messageValue;
+    messageValue.SetString(value.c_str(), value.size(), response.GetAllocator());
+    response.AddMember("message", messageValue, response.GetAllocator());
+
+    rapidjson::Value sourceValue;
+    sourceValue.SetInt(fd);
+    response.AddMember("source", sourceValue, response.GetAllocator());
+
+    rapidjson::Value timestampValue;
+    std::time_t currentTime = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::string timestamp = std::ctime(&currentTime);
+
+    timestampValue.SetString(timestamp.c_str(), timestamp.size() - 1, response.GetAllocator());
+    response.AddMember("timestamp", timestampValue, response.GetAllocator());
+
+    // Convert the JSON object to a string
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    response.Accept(writer);
+    return buffer.GetString();
 }

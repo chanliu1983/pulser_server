@@ -70,11 +70,15 @@ void SenderUtility::sendRawPayload(int fd, const std::string& source) {
     std::cout << "Payload sent successfully" << std::endl;
 }
 
-void SenderUtility::sendRawPayloadAndBroadcast(int fd, const std::string& source, MulticastHandler* multicastHandler) {
-    sendRawPayload(fd, source); // Send the payload to the specified file descriptor
+void SenderUtility::broadcastRawPayload(const std::string& source, MulticastHandler* multicastHandler) {
+    std::string raw = CompressionUtility::compress(source);
+    // Create a DataFrame object with the payload data
+    DataFrame dataFrame(raw.size(), raw.c_str());
 
-    // Broadcast the payload to the multicast group
+    // Send the payload
     multicastHandler->sendMessage(source);
+
+    std::cout << "Payload broadcasted successfully" << std::endl;
 }
 
 std::string SenderUtility::recvRawPayload(int fd) {
