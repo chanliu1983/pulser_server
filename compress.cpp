@@ -97,25 +97,29 @@ std::string CompressionUtility::compressLZ4(const std::string& input) {
 }
 
 std::string CompressionUtility::decompressLZ4(const std::string& input) {
-    // Allocate memory for the decompressed data
-    std::string decompressedData(input.size() * 10, '\0');
-
-    // Decompress the data
-    int decompressedSize = LZ4_decompress_safe(input.c_str(), &decompressedData[0], input.size(), decompressedData.size());
-
-    if (decompressedSize <= 0) {
-        // Decompression failed, try with a larger buffer
-        decompressedData.resize(input.size() * 20, '\0');
-        decompressedSize = LZ4_decompress_safe(input.c_str(), &decompressedData[0], input.size(), decompressedData.size());
-
-        if (decompressedSize <= 0) {
-            // Decompression still failed
+    // Initial buffer size estimate
+    size_t decompressedBufferSize = input.size() * 10;
+    std::string decompressedData;
+    
+    while (true) {
+        decompressedData.resize(decompressedBufferSize);
+        
+        // Decompress the data
+        int decompressedSize = LZ4_decompress_safe(input.c_str(), &decompressedData[0], input.size(), decompressedBufferSize);
+        
+        if (decompressedSize >= 0) {
+            // Resize to actual decompressed size
+            decompressedData.resize(decompressedSize);
+            return decompressedData;
+        }
+        
+        if (decompressedSize == -3) {
+            // Buffer is not sufficient, increase size and retry
+            decompressedBufferSize *= 2;
+        } else {
+            // Decompression failed with another error
+            std::cerr << "Decompression failed" << std::endl;
             return "";
         }
     }
-
-    // Resize the decompressed data string to the actual decompressed size
-    decompressedData.resize(decompressedSize);
-
-    return decompressedData;
 }
