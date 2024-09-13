@@ -94,6 +94,7 @@ void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand)
 
         std::string key = document["key"].GetString();
         std::string target = document["target"].GetString();
+        bool isSingleRetrieval = document.HasMember("single") && document["single"].GetBool();
         std::string value = db.Get(key);
         std::cout << "Retrieved value: " << value << std::endl;
 
@@ -115,8 +116,11 @@ void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand)
         response.Accept(writer);
         std::string jsonStr = buffer.GetString();
 
-        // Send the retrieved value back to the client via Conduit
-        send(-1, jsonStr, target);
+        if (isSingleRetrieval) {
+            sendToSelf(fd, jsonStr);
+        } else {
+            send(-1, jsonStr, target);
+        }
     } else {
         std::cout << "Invalid action: " << action << std::endl;
     }
@@ -135,6 +139,14 @@ void Executor::disconnect(const int& fd, const std::string& value) {
 }
 
 #include "sender.h"
+
+void Executor::sendToSelf(const int& fd, const std::string& value) {
+    // Send to self implementation
+    std::string responseStr = createPayloadJson(value, fd, "");
+
+    std::cout << "Sending to self: " << responseStr << std::endl;
+    SenderUtility::sendRawPayload(fd, responseStr);
+}
 
 void Executor::send(const int& fd, const std::string& value, const std::string& target) {
     // Send implementation

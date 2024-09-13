@@ -14,7 +14,11 @@ public:
 private:
     void connect(const int& fd, const std::string& value);
     void disconnect(const int& fd, const std::string& value);
+
+    // send to target group except self fd
     void send(const int &fd, const std::string &value, const std::string &target);
+    // send to only self fd
+    void sendToSelf(const int &fd, const std::string &value);
 
     std::string createPayloadJson(const std::string &value, const int &fd, const std::string &target);
     std::string addProcessedToJson(const std::string &value);
