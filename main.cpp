@@ -15,9 +15,7 @@
 #include "events.h"
 #include "compress.h"
 #include "conduits.h"
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
+#include "multicast.h"
 
 void acceptCallback(evconnlistener* listener, evutil_socket_t fd, sockaddr* address, int socklen, void* arg) {
     std::cout << "Accepted connection" << std::endl;
@@ -100,6 +98,9 @@ int main() {
     Server server;
     std::thread serverThread(runWebServer, std::ref(server));
     serverThread.detach();
+
+    MulticastHandler multicastHandler("239.0.0.1", 16667);
+    std::thread multicastThread(&MulticastHandler::start, &multicastHandler);
 
     struct event_base* base;
     struct evconnlistener* listener;

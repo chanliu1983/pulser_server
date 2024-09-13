@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Add the executable
-add_executable(main main.cpp server.cpp conduits.cpp executor.cpp events.cpp compress.cpp sender.cpp)
+add_executable(main main.cpp server.cpp conduits.cpp executor.cpp events.cpp compress.cpp sender.cpp multicast.cpp)
 
 # Check if the operating system is macOS
 if(APPLE)
