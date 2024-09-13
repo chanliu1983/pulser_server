@@ -114,5 +114,7 @@ void MulticastHandler::onMessageReceived(evutil_socket_t fd, short events, void*
     }
     buffer[recvLen] = '\0';
 
-    std::cout << "Received message: " << buffer << std::endl;
+    std::string senderIP = inet_ntoa(senderAddr.sin_addr);
+    std::cout << "(Broadcast) Received message from: " << senderIP << std::endl;
+    std::cout << "(Broadcast) Received message: " << buffer << std::endl;
 }
