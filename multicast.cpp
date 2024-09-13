@@ -14,9 +14,9 @@ bool MulticastHandler::start() {
     if (running_) return true;  // Already running
 
     setupSocket();
-    setupEvent();
-
     running_ = true;
+    setupEvent();
+    
     return true;
 }
 
