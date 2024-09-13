@@ -104,6 +104,8 @@ int main() {
         executor.processJsonCommand(-1, message);
     });
 
+    executor.setServerName(config.getServerName());
+
     // Ignore the SIGPIPE signal
     signal(SIGPIPE, SIG_IGN);
 

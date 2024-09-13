@@ -9,11 +9,19 @@
 #include "rapidjson/error/en.h"
 #include "executor.h" // Include the executor.h file
 #include "conduits.h" // Include the conduits.h file
+#include "db.h" // Include the db.h file
 
 // Constructor for the Executor class
 Executor::Executor(MulticastHandler* multicastHandler) : multicastHandler_(multicastHandler) {}
 
+void Executor::setServerName(const std::string &serverName)
+{
+    serverName_ = serverName;
+}
+
 void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand) {
+    static Database db("data.db");
+
     rapidjson::Document document;
     document.Parse(jsonCommand.c_str());
 
@@ -63,6 +71,52 @@ void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand)
         
         std::string target = document["target"].GetString();
         send(fd, msg, target);
+    } else if (action == "store") {
+        // Store the message in the database
+        if (!document.HasMember("key")) {
+            std::cout << "Invalid JSON format. Missing 'key' field." << std::endl;
+            return;
+        }
+
+        std::string key = document["key"].GetString();
+        db.Put(key, msg);
+    } else if (action == "retrieve") {
+        // Retrieve the message from the database
+        if (!document.HasMember("key")) {
+            std::cout << "Invalid JSON format. Missing 'key' field." << std::endl;
+            return;
+        }
+
+        if (!document.HasMember("target")) {
+            std::cout << "Invalid JSON format. Missing 'target' field." << std::endl;
+            return;
+        }
+
+        std::string key = document["key"].GetString();
+        std::string target = document["target"].GetString();
+        std::string value = db.Get(key);
+        std::cout << "Retrieved value: " << value << std::endl;
+
+        // Create a JSON object with "serverName" and "value" fields
+        rapidjson::Document response;
+        response.SetObject();
+
+        rapidjson::Value serverNameValue;
+        serverNameValue.SetString(serverName_.c_str(), serverName_.size(), response.GetAllocator());
+        response.AddMember("server", serverNameValue, response.GetAllocator());
+
+        rapidjson::Value valueValue;
+        valueValue.SetString(value.c_str(), value.size(), response.GetAllocator());
+        response.AddMember("value", valueValue, response.GetAllocator());
+
+        // Convert the JSON object to a string
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        response.Accept(writer);
+        std::string jsonStr = buffer.GetString();
+
+        // Send the retrieved value back to the client via Conduit
+        send(-1, jsonStr, target);
     } else {
         std::cout << "Invalid action: " << action << std::endl;
     }

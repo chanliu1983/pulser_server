@@ -9,6 +9,8 @@ public:
     Executor(MulticastHandler* multicastHandler);
     void processJsonCommand(const int& fd, const std::string& jsonCommand);
 
+    void setServerName(const std::string &serverName);
+
 private:
     void connect(const int& fd, const std::string& value);
     void disconnect(const int& fd, const std::string& value);
@@ -20,6 +22,7 @@ private:
 
 private:
     MulticastHandler *multicastHandler_;
+    std::string serverName_;
 };
 
 #endif // EXECUTOR_H

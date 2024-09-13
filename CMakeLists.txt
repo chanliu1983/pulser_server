@@ -9,7 +9,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Add the executable
-add_executable(main main.cpp server.cpp conduits.cpp executor.cpp events.cpp compress.cpp sender.cpp multicast.cpp setting.cpp inih/ini.c inih/ini.h)
+add_executable(main main.cpp server.cpp conduits.cpp executor.cpp 
+events.cpp compress.cpp sender.cpp multicast.cpp setting.cpp inih/ini.c inih/ini.h 
+db.cpp)
+
+# Find LevelDB
+find_package(leveldb REQUIRED)
+
+include_directories(${LEVELDB_INCLUDE_DIRS})
+link_directories(${LEVELDB_LIBRARY_DIRS})
 
 # Check if the operating system is macOS
 if(APPLE)
@@ -43,7 +51,7 @@ if(APPLE)
     target_link_libraries(main PRIVATE ${ZLIB_LIBRARY})
 else()
     # Link the required libraries
-    target_link_libraries(main PRIVATE event z pthread lz4)
+    target_link_libraries(main PRIVATE event z pthread lz4 leveldb)
 endif()
 
 # Compile with _DEBUG macro define
