@@ -12,4 +12,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 add_executable(main main.cpp server.cpp conduits.cpp executor.cpp events.cpp compress.cpp sender.cpp)
 
 # Link the required libraries
-target_link_libraries(main PRIVATE event z pthread)
+target_link_libraries(main PRIVATE event z pthread lz4)
+# Compile with _DEBUG macro define
+# target_compile_definitions(main PRIVATE _DEBUG)

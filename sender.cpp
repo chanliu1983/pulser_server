@@ -138,14 +138,16 @@ std::string SenderUtility::recvRawPayload(int fd) {
         return "";
     }
 
+#ifdef _DEBUG
     for (int i = 0; i < payloadSize; i++) {
         std::cout << static_cast<int>(payload[i]);
         if (i != payloadSize - 1) {
             std::cout << "";
         }
     }
-
     std::cout << std::endl;
+#endif
+
     // print size of payloadSize
     std::cout << "Received Payload Size: " << payloadSize << std::endl;
 
