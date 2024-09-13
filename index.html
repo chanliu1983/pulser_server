@@ -1,24 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>List of Conduit</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            position: relative;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
         ul {
             list-style-type: none;
             padding: 0;
+            margin: 0;
         }
-        
+
         li {
-            margin-bottom: 10px;
-            background-color: #f2f2f2;
-            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #f0f0f0;
+            padding: 15px;
             border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.3s ease;
+        }
+
+        li:hover {
+            background-color: #e0e0e0;
+        }
+
+        .loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: #666;
+            display: none;
+        }
+
+        .loading-screen.active {
+            display: flex;
         }
     </style>
 </head>
 <body>
-    <h1>File Descriptor Conduit Map:</h1>
-    <ul id="fileDescriptors"></ul>
+    <div class="container">
+        <div class="loading-screen" id="loadingScreen">Loading data...</div>
+        <h1>File Descriptor Conduit Map</h1>
+        <ul id="fileDescriptors"></ul>
+    </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
@@ -29,6 +89,9 @@
                     type: 'GET',
                     dataType: 'json',
                     success: function(data) {
+                        // Hide loading screen
+                        $('#loadingScreen').removeClass('active');
+
                         // Clear the existing list
                         $('#fileDescriptors').empty();
 
@@ -40,11 +103,16 @@
                     },
                     error: function(xhr, status, error) {
                         console.log('Error:', error);
+                        $('#loadingScreen').text('Failed to load data.');
                     }
                 });
             }
 
+            // Refresh data every 2 seconds
             setInterval(refreshData, 2000);
+
+            // Initial load
+            refreshData();
         });
     </script>
 </body>
