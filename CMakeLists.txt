@@ -29,8 +29,8 @@ if(APPLE)
     include_directories(/opt/homebrew/Cellar/rapidjson/1.1.0/include())
     link_directories(${LIBEVENT_LIBRARY_DIRS})
 
-    set(LZ4_INCLUDE_DIR "/opt/homebrew/Cellar/lz4/1.10.0/include")
-    set(LZ4_LIBRARY "/opt/homebrew/Cellar/lz4/1.10.0/lib/liblz4.dylib")
+    set(LZ4_INCLUDE_DIR "/opt/homebrew/opt/lz4/include")
+    set(LZ4_LIBRARY "/opt/homebrew/opt/lz4/lib/liblz4.dylib")
 
     include_directories(${LZ4_INCLUDE_DIR})
     target_link_libraries(main PRIVATE ${LZ4_LIBRARY} 
@@ -48,7 +48,12 @@ if(APPLE)
 
     include_directories(${ZLIB_INCLUDE_DIR})
 
-    target_link_libraries(main PRIVATE ${ZLIB_LIBRARY})
+    set(leveldb_LIBRARY "/opt/homebrew/opt/leveldb/lib/libleveldb.dylib")
+    set(LEVELDB_INCLUDE_DIRS "/opt/homebrew/opt/leveldb/include")
+
+    include_directories(${LEVELDB_INCLUDE_DIRS})
+
+    target_link_libraries(main PRIVATE ${ZLIB_LIBRARY} ${leveldb_LIBRARY})
 else()
     # Link the required libraries
     target_link_libraries(main PRIVATE event z pthread lz4 leveldb)
