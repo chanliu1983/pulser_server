@@ -19,6 +19,9 @@ find_package(leveldb REQUIRED)
 include_directories(${LEVELDB_INCLUDE_DIRS})
 link_directories(${LEVELDB_LIBRARY_DIRS})
 
+find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
+
 # Check if the operating system is macOS
 if(APPLE)
     # Set additional compiler flags for macOS
