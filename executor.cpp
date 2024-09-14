@@ -7,12 +7,11 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/error/en.h"
-#include "channel.h" // Include the channel.h file
-#include "executor.h" // Include the executor.h file
-#include "conduits.h" // Include the conduits.h file
-#include "db.h" // Include the db.h file
+#include "channel.h"
+#include "executor.h"
+#include "conduits.h"
+#include "db.h"
 
-// Constructor for the Executor class
 Executor::Executor(MulticastHandler* multicastHandler) : multicastHandler_(multicastHandler) {}
 
 void Executor::setServerName(const std::string &serverName)
@@ -97,7 +96,10 @@ void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand)
         std::string target = document["target"].GetString();
         bool isSingleRetrieval = document.HasMember("single") && document["single"].GetBool();
         std::string value = db.Get(key);
+
+#ifdef _VERBOSE
         std::cout << "Retrieved value: " << value << std::endl;
+#endif
 
         // Create a JSON object with "serverName" and "value" fields
         rapidjson::Document response;
@@ -133,13 +135,16 @@ void Executor::processJsonCommand(const int& fd, const std::string& jsonCommand)
 
 void Executor::connect(const int& fd, const std::string& value) {
     // Connect implementation
+#ifdef _VERBOSE
     std::cout << "Connecting: " << value << std::endl;
+#endif
     ConduitsCollection::getInstance().addFd(value, fd);
 }
 
 void Executor::disconnect(const int& fd, const std::string& value) {
-    // Disconnect implementation
+#ifdef _VERBOSE
     std::cout << "Disconnecting: " << value << std::endl;
+#endif
     ConduitsCollection::getInstance().deleteFd(value, fd);
 }
 
@@ -148,14 +153,11 @@ void Executor::disconnect(const int& fd, const std::string& value) {
 void Executor::sendToSelf(const int& fd, const std::string& value) {
     // Send to self implementation
     std::string responseStr = createPayloadJson(value, fd, "");
-    std::cout << "Sending to self: " << responseStr << std::endl;
+    std::cout << "Sending to self: fd(" << fd << ") " << responseStr << std::endl;
     SenderUtility::sendRawPayloadSSL(channelMap.getChannelObject(fd).ssl, responseStr);
 }
 
 void Executor::send(const int& fd, const std::string& value, const std::string& conduitName) {
-    // Send implementation
-    std::cout << "Sending: " << value << std::endl;
-
     if (fd != -1 && !ConduitsCollection::getInstance().isFdInConduit(conduitName, fd)) {
         std::cerr << "Error: File descriptor not in conduit" << std::endl;
         return;
@@ -169,7 +171,7 @@ void Executor::send(const int& fd, const std::string& value, const std::string& 
             continue; // Skip sending to oneself
         }
         // Send the message to each file descriptor
-        std::cout << "Sending message to fd: " << targetFd << std::endl;
+        std::cout << "Sending message to fd(" << targetFd << "): " << responseStr << std::endl;
         SenderUtility::sendRawPayloadSSL(channelMap.getChannelObject(targetFd).ssl, responseStr);
     }
 

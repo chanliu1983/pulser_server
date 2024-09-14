@@ -195,7 +195,7 @@ int main() {
         static size_t prevSize = 0;
         size_t currentSize = channelObject.size();
         if (currentSize != prevSize) {
-            std::cout << "Channel map count: " << currentSize << std::endl;
+            std::cout << "Total Fd count : " << currentSize << std::endl;
             prevSize = currentSize;
         }
     }, nullptr);

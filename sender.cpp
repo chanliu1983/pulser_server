@@ -67,7 +67,9 @@ void SenderUtility::sendRawPayloadSSL(SSL* ssl, const std::string& source) {
         totalBytesSent += bytesSent;
     }
 
+#ifdef _VERBOSE
     std::cout << "Payload sent successfully" << std::endl;
+#endif
 }
 
 void SenderUtility::broadcastRawPayload(const std::string& source, MulticastHandler* multicastHandler) {
@@ -148,19 +150,6 @@ std::string SenderUtility::recvRawPayloadSSL(SSL* ssl) {
         delete[] payload;
         return "";
     }
-
-#ifdef _DEBUG
-    for (int i = 0; i < payloadSize; i++) {
-        std::cout << static_cast<int>(payload[i]);
-        if (i != payloadSize - 1) {
-            std::cout << "";
-        }
-    }
-    std::cout << std::endl;
-#endif
-
-    // print size of payloadSize
-    std::cout << "Received Payload Size: " << payloadSize << std::endl;
 
     // Process the received payload
     std::string receivedData = CompressionUtility::decompress(std::string(payload, payloadSize));
