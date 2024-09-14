@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Add the executable
 add_executable(main main.cpp server.cpp conduits.cpp executor.cpp 
 events.cpp compress.cpp sender.cpp multicast.cpp setting.cpp inih/ini.c inih/ini.h 
-db.cpp)
+db.cpp secure.cpp)
 
 # Find LevelDB
 find_package(leveldb REQUIRED)
@@ -53,10 +53,13 @@ if(APPLE)
 
     include_directories(${LEVELDB_INCLUDE_DIRS})
 
-    target_link_libraries(main PRIVATE ${ZLIB_LIBRARY} ${leveldb_LIBRARY})
+    find_package(OpenSSL REQUIRED)
+    include_directories(${OPENSSL_INCLUDE_DIR})
+
+    target_link_libraries(main PRIVATE ${ZLIB_LIBRARY} ${leveldb_LIBRARY} ${OPENSSL_LIBRARIES})
 else()
     # Link the required libraries
-    target_link_libraries(main PRIVATE event z pthread lz4 leveldb)
+    target_link_libraries(main PRIVATE event z pthread lz4 leveldb  ssl crypto)
 endif()
 
 # Compile with _DEBUG macro define
