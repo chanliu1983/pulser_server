@@ -15,8 +15,8 @@ private:
     void connect(const int& fd, const std::string& value);
     void disconnect(const int& fd, const std::string& value);
 
-    // send to target group except self fd
-    void send(const int &fd, const std::string &value, const std::string &target);
+    // send to target group except self fd using conduit name as last argument
+    void send(const int &fd, const std::string &value, const std::string &conduitName);
     // send to only self fd
     void sendToSelf(const int &fd, const std::string &value);
 
@@ -26,6 +26,7 @@ private:
 
 private:
     MulticastHandler *multicastHandler_;
+    FdChannelObjectCollection &channelMap = FdChannelObjectCollection::getInstance();
     std::string serverName_;
 };
 

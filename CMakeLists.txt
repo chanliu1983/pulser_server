@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Add the executable
 add_executable(main main.cpp server.cpp conduits.cpp executor.cpp 
-events.cpp compress.cpp sender.cpp multicast.cpp setting.cpp inih/ini.c inih/ini.h 
+channel.cpp compress.cpp sender.cpp multicast.cpp setting.cpp inih/ini.c inih/ini.h 
 db.cpp secure.cpp)
 
 # Find LevelDB

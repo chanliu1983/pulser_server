@@ -7,6 +7,7 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/error/en.h"
+#include "channel.h" // Include the channel.h file
 #include "executor.h" // Include the executor.h file
 #include "conduits.h" // Include the conduits.h file
 #include "db.h" // Include the db.h file
@@ -147,22 +148,21 @@ void Executor::disconnect(const int& fd, const std::string& value) {
 void Executor::sendToSelf(const int& fd, const std::string& value) {
     // Send to self implementation
     std::string responseStr = createPayloadJson(value, fd, "");
-
     std::cout << "Sending to self: " << responseStr << std::endl;
-    SenderUtility::sendRawPayload(fd, responseStr);
+    SenderUtility::sendRawPayloadSSL(channelMap.getChannelObject(fd).ssl, responseStr);
 }
 
-void Executor::send(const int& fd, const std::string& value, const std::string& target) {
+void Executor::send(const int& fd, const std::string& value, const std::string& conduitName) {
     // Send implementation
     std::cout << "Sending: " << value << std::endl;
 
-    if (fd != -1 && !ConduitsCollection::getInstance().isFdInConduit(target, fd)) {
+    if (fd != -1 && !ConduitsCollection::getInstance().isFdInConduit(conduitName, fd)) {
         std::cerr << "Error: File descriptor not in conduit" << std::endl;
         return;
     }
 
-    const ConduitParser::Conduit& conduit = ConduitsCollection::getInstance().getConduit(target);
-    std::string responseStr = createPayloadJson(value, fd, target);
+    const ConduitParser::Conduit& conduit = ConduitsCollection::getInstance().getConduit(conduitName);
+    std::string responseStr = createPayloadJson(value, fd, conduitName);
 
     for (int targetFd : conduit.fileDescriptors) {
         if (targetFd == fd) {
@@ -170,7 +170,7 @@ void Executor::send(const int& fd, const std::string& value, const std::string& 
         }
         // Send the message to each file descriptor
         std::cout << "Sending message to fd: " << targetFd << std::endl;
-        SenderUtility::sendRawPayload(targetFd, responseStr);
+        SenderUtility::sendRawPayloadSSL(channelMap.getChannelObject(targetFd).ssl, responseStr);
     }
 
     if (fd == -1 || isProcessed(responseStr)) {

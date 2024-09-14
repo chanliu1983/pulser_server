@@ -3,13 +3,15 @@
 
 #include <cstdint>
 #include <string>
+#include <openssl/ssl.h>
 #include "multicast.h"
 
 class SenderUtility {
 public:
-    static void sendRawPayload(int fd, const std::string& source);
+    static std::string recvRawPayloadSSL(SSL* ssl);
+    static void sendRawPayloadSSL(SSL* ssl, const std::string& source);
+
     static void broadcastRawPayload(const std::string& source, MulticastHandler* multicastHandler);
-    static std::string recvRawPayload(int fd);
 };
 
 #endif // SENDER_H

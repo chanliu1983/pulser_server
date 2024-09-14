@@ -12,9 +12,11 @@ public:
 
     bool initialize();
     SSL_CTX* createContext();
-    bool configureContext(SSL_CTX* ctx, const std::string& certFile, const std::string& keyFile);
-    SSL* createSSL(SSL_CTX* ctx, int socket);
+    bool configureContext(const std::string& certFile, const std::string& keyFile);
+    SSL* createSSL(int socket);
     void cleanup();
+
+    SSL_CTX* getSSLContext() const;
 
 private:
     SSL_CTX* ctx_;

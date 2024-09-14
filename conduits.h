@@ -42,6 +42,7 @@ private:
     ConduitsCollection(const ConduitsCollection&) = delete;
     ConduitsCollection& operator=(const ConduitsCollection&) = delete;
 
+    // Parse the JSON data and store the conduits from Setting file
     void parseConduits(const std::string& jsonData);
 
     std::vector<ConduitParser::Conduit> conduits_;
