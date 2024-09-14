@@ -14,7 +14,10 @@ public:
     int getClusterMultiCastPort() const;
     int getManagementEndPointPort() const;
     int getConduitEndpointPort() const;
+
     std::string getServerName() const;
+    std::string getCertFile() const;
+    std::string getKeyFile() const;
 
 private:
     std::string clusterMultiCastIP;
@@ -23,6 +26,9 @@ private:
     int conduitEndpointPort;
 
     std::string serverName;
+
+    std::string certFile;
+    std::string keyFile;
 
     static int ini_handler(void* user, const char* section, const char* name, const char* value);
 

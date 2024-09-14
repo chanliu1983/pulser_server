@@ -31,6 +31,14 @@ std::string PulserConfig::getServerName() const {
     return serverName;
 }
 
+std::string PulserConfig::getCertFile() const {
+    return certFile;
+}
+
+std::string PulserConfig::getKeyFile() const {
+    return keyFile;
+}
+
 // INI handler function
 int PulserConfig::ini_handler(void* user, const char* section, const char* name, const char* value) {
     PulserConfig* config = static_cast<PulserConfig*>(user);
@@ -53,6 +61,10 @@ int PulserConfig::ini_handler(void* user, const char* section, const char* name,
             config->conduitEndpointPort = std::stoi(value);
         } else if (std::string(name) == "PulserServerName") {
             config->serverName = value;
+        } else if (std::string(name) == "CertFile") {
+            config->certFile = value;
+        } else if (std::string(name) == "KeyFile") {
+            config->keyFile = value;
         }
     }
 

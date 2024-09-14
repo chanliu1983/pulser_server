@@ -33,25 +33,25 @@ struct DataFrame {
     }
 };
 
-void SenderUtility::sendRawPayload(int fd, const std::string& source) {
+void SenderUtility::sendRawPayloadSSL(SSL* ssl, const std::string& source) {
     std::string raw = CompressionUtility::compress(source);
     // Create a DataFrame object with the payload data
     DataFrame dataFrame(raw.size(), raw.c_str());
 
     // Send the magic
-    if (send(fd, reinterpret_cast<char*>(&dataFrame.magic), sizeof(dataFrame.magic), 0) != sizeof(dataFrame.magic)) {
+    if (SSL_write(ssl, reinterpret_cast<char*>(&dataFrame.magic), sizeof(dataFrame.magic)) != sizeof(dataFrame.magic)) {
         std::cerr << "Error sending magic: " << strerror(errno) << std::endl;
         return;
     }
 
     // Send the payload size
-    if (send(fd, reinterpret_cast<char*>(&dataFrame.size), sizeof(dataFrame.size), 0) != sizeof(dataFrame.size)) {
+    if (SSL_write(ssl, reinterpret_cast<char*>(&dataFrame.size), sizeof(dataFrame.size)) != sizeof(dataFrame.size)) {
         std::cerr << "Error sending payload size: " << strerror(errno) << std::endl;
         return;
     }
 
     // Send the checksum
-    if (send(fd, reinterpret_cast<char*>(&dataFrame.checksum), sizeof(dataFrame.checksum), 0) != sizeof(dataFrame.checksum)) {
+    if (SSL_write(ssl, reinterpret_cast<char*>(&dataFrame.checksum), sizeof(dataFrame.checksum)) != sizeof(dataFrame.checksum)) {
         std::cerr << "Error sending checksum: " << strerror(errno) << std::endl;
         return;
     }
@@ -59,7 +59,7 @@ void SenderUtility::sendRawPayload(int fd, const std::string& source) {
     // Send the payload data
     int totalBytesSent = 0;
     while (totalBytesSent < dataFrame.size) {
-        int bytesSent = send(fd, raw.c_str() + totalBytesSent, dataFrame.size - totalBytesSent, 0);
+        int bytesSent = SSL_write(ssl, raw.c_str() + totalBytesSent, dataFrame.size - totalBytesSent);
         if (bytesSent <= 0) {
             std::cerr << "Error sending payload data: " << strerror(errno) << std::endl;
             return;
@@ -81,10 +81,10 @@ void SenderUtility::broadcastRawPayload(const std::string& source, MulticastHand
     std::cout << "Payload broadcasted successfully" << std::endl;
 }
 
-std::string SenderUtility::recvRawPayload(int fd) {
+std::string SenderUtility::recvRawPayloadSSL(SSL* ssl) {
     // Receive the magic
     uint32_t magic;
-    if (recv(fd, reinterpret_cast<char*>(&magic), sizeof(magic), 0) != sizeof(magic)) {
+    if (SSL_read(ssl, reinterpret_cast<char*>(&magic), sizeof(magic)) != sizeof(magic)) {
         std::cerr << "Error receiving magic: " << strerror(errno) << std::endl;
         return "";
     }
@@ -94,14 +94,14 @@ std::string SenderUtility::recvRawPayload(int fd) {
 
     // Receive the payload size
     uint32_t payloadSize;
-    if (recv(fd, reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize), 0) != sizeof(payloadSize)) {
+    if (SSL_read(ssl, reinterpret_cast<char*>(&payloadSize), sizeof(payloadSize)) != sizeof(payloadSize)) {
         std::cerr << "Error receiving payload size: " << strerror(errno) << std::endl;
         return "";
     }
 
     // Receive the checksum
     uint32_t checksum;
-    if (recv(fd, reinterpret_cast<char*>(&checksum), sizeof(checksum), 0) != sizeof(checksum)) {
+    if (SSL_read(ssl, reinterpret_cast<char*>(&checksum), sizeof(checksum)) != sizeof(checksum)) {
         std::cerr << "Error receiving checksum: " << strerror(errno) << std::endl;
         return "";
     }
@@ -119,7 +119,7 @@ std::string SenderUtility::recvRawPayload(int fd) {
     int totalBytesRead = 0;
     int eagainCount = 0;
     while (totalBytesRead < payloadSize) {
-        int bytesRead = recv(fd, payload + totalBytesRead, payloadSize - totalBytesRead, 0);
+        int bytesRead = SSL_read(ssl, payload + totalBytesRead, payloadSize - totalBytesRead);
         if (bytesRead <= 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // No data available (non-blocking mode), try again after 500 ms

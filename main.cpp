@@ -10,66 +10,88 @@
 #include <thread>
 #include <map>
 #include "main.h"
-#include "server.h"
-#include "setting.h"
-#include "sender.h"
-#include "events.h"
-#include "compress.h"
-#include "conduits.h"
-#include "multicast.h"
 
-void acceptCallback(evconnlistener* listener, evutil_socket_t fd, sockaddr* address, int socklen, void* arg) {
-    std::cout << "Accepted connection" << std::endl;
+void cleanupFd(evutil_socket_t fd) {
+    static FdChannelObjectCollection& channelMap = FdChannelObjectCollection::getInstance();
+    static ConduitsCollection& conduits = ConduitsCollection::getInstance();
 
-    // Set the socket to non-blocking mode
-    evutil_make_socket_nonblocking(fd);
+    ChannelObject obj = channelMap.getChannelObject(fd);
+    if (obj.ssl) {
+        SSL_shutdown(obj.ssl);
+        SSL_free(obj.ssl);
+    }
 
-    // Set up an event to monitor the socket for read events
-    event_base* base = (event_base*)arg;
-    event* readEvent = event_new(base, fd, EV_READ | EV_PERSIST, readCallback, nullptr);
-    event_add(readEvent, nullptr);
+    event* ev = obj.ev;
+    if (ev) {
+        event_del(ev);
+        event_free(ev);
+    }
 
-    // Store the event pointer in the map
-    EventsObjectCollection::getInstance().addEventObject(fd, readEvent);
+    channelMap.deleteChannelObject(fd);
+    conduits.deleteFd(fd);
+
+    evutil_closesocket(fd);
+    std::cout << "Connection closed" << std::endl;
 }
 
-void readCallback(evutil_socket_t fd, short events, void* arg) {
-    static EventsObjectCollection& eventObjects = EventsObjectCollection::getInstance();
+void sslReadCallback(evutil_socket_t fd, short events, void* arg) {
+    SSL* ssl = static_cast<SSL*>(arg);
 
     if (events & EV_READ) {
         char buffer[1];
-        // Check if the socket has been closed
-        int result = recv(fd, buffer, 1, MSG_PEEK);
-        if (result == 0) {
-            // Socket has been closed
-            std::cout << "Socket closed by the other side" << std::endl;
+        int bytes_read = SSL_peek(ssl, buffer, sizeof(buffer));
 
-            // Close the socket
-            evutil_closesocket(fd);
-            ConduitsCollection::getInstance().deleteFd(fd);
-
-            event* readEvent = eventObjects.getEventObject(fd);
-            event_free(readEvent);
-            eventObjects.deleteEventObject(fd);
-        } else if (result < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                // No data available (non-blocking mode)
-                std::cout << "No data available, try again later" << std::endl;
+        if (bytes_read > 0) {
+            // Process the received data
+            recvAndParsePayload(fd);
+        } else if (bytes_read == 0) {
+            // Connection closed
+            cleanupFd(fd);
+        } else {
+            int error = SSL_get_error(ssl, bytes_read);
+            if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE) {
+                // Handle non-blocking mode
                 return;
             } else {
-                // Other errors
-                std::cerr << "Error checking socket status: " << strerror(errno) << std::endl;
-                // Close the socket
-                evutil_closesocket(fd);
-                ConduitsCollection::getInstance().deleteFd(fd);
-
-                event* readEvent = eventObjects.getEventObject(fd);
-                event_free(readEvent);
-                eventObjects.deleteEventObject(fd);
+                std::cerr << "Could not read data from SSL connection: ";
+                ERR_print_errors_fp(stderr);
+                cleanupFd(fd);
             }
+        }
+    }
+}
+
+void acceptCallback(evconnlistener* listener, evutil_socket_t fd, sockaddr* address, int socklen, void* arg) {
+    SSLManagerEventBase* sslManagerEventBase = static_cast<SSLManagerEventBase*>(arg);
+    SSLManager* sslManager = sslManagerEventBase->sslManager;
+    event_base* base = sslManagerEventBase->base;
+
+    SSL* ssl = sslManager->createSSL(fd);
+    if (!ssl) {
+        std::cerr << "Could not create SSL object" << std::endl;
+        return;
+    }
+
+    int acceptResult = SSL_accept(ssl);
+    if (acceptResult <= 0) {
+        int error = SSL_get_error(ssl, acceptResult);
+        if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE) {
+            static FdChannelObjectCollection& fdChannelObjectCollection = FdChannelObjectCollection::getInstance();
+
+            // Set the socket to non-blocking mode
+            evutil_make_socket_nonblocking(fd);
+
+            // Create a new event for reading
+            event* readEvent = event_new(base, fd, EV_READ | EV_PERSIST, sslReadCallback, ssl);
+            event_add(readEvent, nullptr);
+            
+            fdChannelObjectCollection.addChannelObject(fd, readEvent, ssl);
+            return;
         } else {
-            // Socket is still open, continue reading
-            recvAndParsePayload(fd);
+            std::cerr << "Could not accept SSL connection: ";
+            ERR_print_errors_fp(stderr);
+            SSL_free(ssl);
+            return;
         }
     }
 }
@@ -78,11 +100,15 @@ void readCallback(evutil_socket_t fd, short events, void* arg) {
 
 MulticastHandler multicastHandler("239.0.0.1", 16667);
 Executor executor(&multicastHandler);
+SSLManager sslManager;
 int managementPort = 8080;
 
-void recvAndParsePayload(int fd)
-{
-    std::string receivedData = SenderUtility::recvRawPayload(fd);
+void recvAndParsePayload(int fd) {
+    static FdChannelObjectCollection& channelObject = FdChannelObjectCollection::getInstance();
+    ChannelObject obj = channelObject.getChannelObject(fd);
+    SSL* ssl = obj.ssl;
+
+    std::string receivedData = SenderUtility::recvRawPayloadSSL(ssl);
     executor.processJsonCommand(fd, receivedData);
 }
 
@@ -95,6 +121,20 @@ void runWebServer(Server& server) {
 int main() {
     // load ini setting file
     PulserConfig config("setting.ini");
+
+    // Initialize the SSL manager
+    if (!sslManager.initialize()) {
+        std::cerr << "Could not initialize the SSL manager!" << std::endl;
+        return 1;
+    }
+
+    // configuration context for ssl
+    sslManager.createContext(); 
+
+    if (!sslManager.configureContext(config.getCertFile(), config.getKeyFile())) {
+        std::cerr << "Could not configure the SSL context!" << std::endl;
+        return 1;
+    }
 
     managementPort = config.getManagementEndPointPort();
 
@@ -136,7 +176,7 @@ int main() {
     listener = evconnlistener_new_bind(
         base,
         acceptCallback,
-        base,
+        createSSLManagerEventBase(&sslManager, base),
         LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE,
         -1,
         (struct sockaddr*)&sin,
@@ -150,11 +190,12 @@ int main() {
 
     // Create a timeout event
     event* timeoutEvent = event_new(base, -1, EV_TIMEOUT | EV_PERSIST, [](evutil_socket_t fd, short events, void* arg) {
+        static FdChannelObjectCollection& channelObject = FdChannelObjectCollection::getInstance();
         // Check if the event map size has changed
         static size_t prevSize = 0;
-        size_t currentSize = EventsObjectCollection::getInstance().size();
+        size_t currentSize = channelObject.size();
         if (currentSize != prevSize) {
-            std::cout << "Event map count: " << currentSize << std::endl;
+            std::cout << "Channel map count: " << currentSize << std::endl;
             prevSize = currentSize;
         }
     }, nullptr);
